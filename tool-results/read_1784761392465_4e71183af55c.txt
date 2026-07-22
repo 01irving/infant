@@ -1,0 +1,951 @@
+     1→"use client";
+     2→
+     3→import React, { useState, useEffect, useCallback } from "react";
+     4→import { motion, AnimatePresence } from "framer-motion";
+     5→import { Button } from "@/components/ui/button";
+     6→import { Input } from "@/components/ui/input";
+     7→import { Label } from "@/components/ui/label";
+     8→import {
+     9→  Card,
+    10→  CardContent,
+    11→  CardDescription,
+    12→  CardHeader,
+    13→  CardTitle,
+    14→} from "@/components/ui/card";
+    15→import {
+    16→  Select,
+    17→  SelectContent,
+    18→  SelectItem,
+    19→  SelectTrigger,
+    20→  SelectValue,
+    21→} from "@/components/ui/select";
+    22→import {
+    23→  Table,
+    24→  TableBody,
+    25→  TableCell,
+    26→  TableHead,
+    27→  TableHeader,
+    28→  TableRow,
+    29→} from "@/components/ui/table";
+    30→import { Badge } from "@/components/ui/badge";
+    31→import { Separator } from "@/components/ui/separator";
+    32→import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+    33→import {
+    34→  Baby,
+    35→  Calculator,
+    36→  Trash2,
+    37→  Save,
+    38→  History,
+    39→  FlaskConical,
+    40→  Heart,
+    41→  Droplets,
+    42→  ShieldPlus,
+    43→  Zap,
+    44→  Ruler,
+    45→  Activity,
+    46→  Flame,
+    47→  TrendingUp,
+    48→  AlertCircle,
+    49→  RefreshCw,
+    50→} from "lucide-react";
+    51→import { useToast } from "@/hooks/use-toast";
+    52→
+    53→/* ------------------------------------------------------------------ */
+    54→/*  Types                                                              */
+    55→/* ------------------------------------------------------------------ */
+    56→
+    57→interface FormData {
+    58→  peso: string;
+    59→  edadMeses: string;
+    60→  sexo: string;
+    61→  edadGestacional: string;
+    62→  talla: string;
+    63→  nivelActividad: string;
+    64→}
+    65→
+    66→interface CalculationResults {
+    67→  tasaMetabolicaBasal: number;
+    68→  gastoEnergeticoTotal: number;
+    69→  requerimientoEnergetico: number;
+    70→  costoEnergiaCrecimiento: number;
+    71→  requerimientoEnergeticoPorKg: number;
+    72→  requerimientoLiquidos: number;
+    73→  requerimientoLiquidosPorKg: number;
+    74→  requerimientoProteinasEAR: number;
+    75→  requerimientoProteinasRDA: number;
+    76→  requerimientoProteinasRango: string;
+    77→  proteinasTotales: number;
+    78→  requerimientoSodio: number;
+    79→  requerimientoSodioRango: string;
+    80→  requerimientoPotasio: number;
+    81→  requerimientoPotasioRango: string;
+    82→  superficieCorporal: number;
+    83→  metodoBMR: string;
+    84→  metodoTEE: string;
+    85→  factorPAL: number;
+    86→  esPrematuro: boolean;
+    87→}
+    88→
+    89→interface SavedRecord {
+    90→  id: number;
+    91→  peso: number;
+    92→  edadMeses: number;
+    93→  sexo: string;
+    94→  edadGestacional: number | null;
+    95→  talla: number | null;
+    96→  nivelActividad: string;
+    97→  tasaMetabolicaBasal: number;
+    98→  gastoEnergeticoTotal: number;
+    99→  requerimientoEnergetico: number;
+   100→  costoEnergiaCrecimiento: number;
+   101→  requerimientoEnergeticoPorKg: number;
+   102→  requerimientoLiquidos: number;
+   103→  requerimientoLiquidosPorKg: number;
+   104→  requerimientoProteinasEAR: number;
+   105→  requerimientoProteinasRDA: number;
+   106→  requerimientoProteinasRango: string;
+   107→  proteinasTotales: number;
+   108→  requerimientoSodio: number;
+   109→  requerimientoSodioRango: string;
+   110→  requerimientoPotasio: number;
+   111→  requerimientoPotasioRango: string;
+   112→  superficieCorporal: number;
+   113→  metodoBMR: string;
+   114→  metodoTEE: string;
+   115→  factorPAL: number;
+   116→  esPrematuro: boolean;
+   117→  createdAt: string;
+   118→}
+   119→
+   120→/* ------------------------------------------------------------------ */
+   121→/*  Helpers                                                            */
+   122→/* ------------------------------------------------------------------ */
+   123→
+   124→function formatEdad(meses: number): string {
+   125→  if (meses < 1) return "< 1 mes";
+   126→  if (meses === 1) return "1 mes";
+   127→  if (meses < 12) return `${meses} meses`;
+   128→  const a = Math.floor(meses / 12),
+   129→    m = meses % 12;
+   130→  return m > 0 ? `${a} a\u00f1os, ${m} meses` : `${a} a\u00f1os`;
+   131→}
+   132→
+   133→function formatFecha(fecha: string): string {
+   134→  try {
+   135→    return new Date(fecha).toLocaleDateString("es-ES", {
+   136→      day: "2-digit",
+   137→      month: "2-digit",
+   138→      year: "numeric",
+   139→      hour: "2-digit",
+   140→      minute: "2-digit",
+   141→    });
+   142→  } catch {
+   143→    return fecha;
+   144→  }
+   145→}
+   146→
+   147→/* ------------------------------------------------------------------ */
+   148→/*  Sub-components                                                     */
+   149→/* ------------------------------------------------------------------ */
+   150→
+   151→function ResultItem({
+   152→  icon,
+   153→  label,
+   154→  value,
+   155→  detail,
+   156→  colorClass,
+   157→  highlight = false,
+   158→}: {
+   159→  icon: React.ReactNode;
+   160→  label: string;
+   161→  value: string;
+   162→  detail: string;
+   163→  colorClass: string;
+   164→  highlight?: boolean;
+   165→}) {
+   166→  return (
+   167→    <motion.div
+   168→      initial={{ opacity: 0, y: 8 }}
+   169→      animate={{ opacity: 1, y: 0 }}
+   170→      className={`flex items-start gap-3 py-2.5 ${
+   171→        highlight
+   172→          ? "rounded-lg bg-amber-50/60 px-3 -mx-1 border border-amber-200/40"
+   173→          : ""
+   174→      }`}
+   175→    >
+   176→      <div
+   177→        className={`w-9 h-9 rounded-lg ${colorClass} flex items-center justify-center shrink-0 mt-0.5`}
+   178→      >
+   179→        {icon}
+   180→      </div>
+   181→      <div className="flex-1 min-w-0">
+   182→        <p className="text-xs text-muted-foreground font-medium">{label}</p>
+   183→        <p
+   184→          className={`text-sm font-semibold ${
+   185→            highlight ? "text-amber-800" : "text-foreground"
+   186→          }`}
+   187→        >
+   188→          {value}
+   189→        </p>
+   190→        <p className="text-xs text-muted-foreground/70 mt-0.5">{detail}</p>
+   191→      </div>
+   192→    </motion.div>
+   193→  );
+   194→}
+   195→
+   196→function EmptyState({
+   197→  icon: Icon,
+   198→  title,
+   199→  description,
+   200→  action,
+   201→}: {
+   202→  icon: React.ElementType;
+   203→  title: string;
+   204→  description: string;
+   205→  action?: React.ReactNode;
+   206→}) {
+   207→  return (
+   208→    <motion.div
+   209→      initial={{ opacity: 0, scale: 0.95 }}
+   210→      animate={{ opacity: 1, scale: 1 }}
+   211→      className="flex flex-col items-center justify-center py-16 text-center"
+   212→    >
+   213→      <div className="w-16 h-16 rounded-full bg-muted/60 flex items-center justify-center mb-4">
+   214→        <Icon className="w-8 h-8 text-muted-foreground/50" />
+   215→      </div>
+   216→      <h3 className="text-lg font-medium text-muted-foreground mb-2">
+   217→        {title}
+   218→      </h3>
+   219→      <p className="text-sm text-muted-foreground/70 max-w-xs mb-4">
+   220→        {description}
+   221→      </p>
+   222→      {action}
+   223→    </motion.div>
+   224→  );
+   225→}
+   226→
+   227→/* ------------------------------------------------------------------ */
+   228→/*  Main Page                                                          */
+   229→/* ------------------------------------------------------------------ */
+   230→
+   231→export default function Home() {
+   232→  const { toast } = useToast();
+   233→  const [formData, setFormData] = useState<FormData>({
+   234→    peso: "",
+   235→    edadMeses: "",
+   236→    sexo: "",
+   237→    edadGestacional: "",
+   238→    talla: "",
+   239→    nivelActividad: "moderado",
+   240→  });
+   241→  const [resultados, setResultados] = useState<CalculationResults | null>(null);
+   242→  const [records, setRecords] = useState<SavedRecord[]>([]);
+   243→  const [errores, setErrores] = useState<string[]>([]);
+   244→  const [loading, setLoading] = useState(false);
+   245→  const [saving, setSaving] = useState(false);
+   246→  const [activeTab, setActiveTab] = useState("calculator");
+   247→  const [lastInput, setLastInput] = useState<Record<string, string> | null>(
+   248→    null
+   249→  );
+   250→
+   251→  /* ---- Fetch records ---- */
+   252→  const fetchRecords = useCallback(async () => {
+   253→    try {
+   254→      const res = await fetch("/api/records");
+   255→      if (res.ok) {
+   256→        const data = await res.json();
+   257→        setRecords(data.records || []);
+   258→      }
+   259→    } catch {
+   260→      // silent
+   261→    }
+   262→  }, []);
+   263→
+   264→  useEffect(() => {
+   265→    fetchRecords();
+   266→  }, [fetchRecords]);
+   267→
+   268→  /* ---- Form change ---- */
+   269→  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+   270→    const { name, value } = e.target;
+   271→    setFormData((prev) => ({ ...prev, [name]: value }));
+   272→    if (errores.length > 0) setErrores([]);
+   273→  };
+   274→
+   275→  const handleSelectChange = (name: string, value: string) => {
+   276→    setFormData((prev) => ({ ...prev, [name]: value }));
+   277→    if (errores.length > 0) setErrores([]);
+   278→  };
+   279→
+   280→  /* ---- Validate ---- */
+   281→  const validateForm = (): boolean => {
+   282→    const e: string[] = [];
+   283→    const p = parseFloat(formData.peso);
+   284→    if (!formData.peso || isNaN(p) || p <= 0)
+   285→      e.push("El peso debe ser mayor a 0 kg");
+   286→    else if (p > 120) e.push("El peso m\u00e1ximo es 120 kg");
+   287→    const m = parseInt(formData.edadMeses);
+   288→    if (!formData.edadMeses || isNaN(m) || m < 0)
+   289→      e.push("La edad debe ser mayor o igual a 0 meses");
+   290→    else if (m > 216) e.push("La edad m\u00e1xima es 216 meses (18 a\u00f1os)");
+   291→    if (!formData.sexo) e.push("Debe seleccionar el sexo");
+   292→    setErrores(e);
+   293→    return e.length === 0;
+   294→  };
+   295→
+   296→  /* ---- Calculate ---- */
+   297→  const handleCalculate = async () => {
+   298→    if (!validateForm()) return;
+   299→    setLoading(true);
+   300→    setResultados(null);
+   301→    try {
+   302→      const payload: Record<string, string> = {
+   303→        peso: formData.peso,
+   304→        edadMeses: formData.edadMeses,
+   305→        sexo: formData.sexo,
+   306→        nivelActividad: formData.nivelActividad,
+   307→      };
+   308→      if (formData.edadGestacional)
+   309→        payload.edadGestacional = formData.edadGestacional;
+   310→      if (formData.talla) payload.talla = formData.talla;
+   311→
+   312→      const res = await fetch("/api/calculate", {
+   313→        method: "POST",
+   314→        headers: { "Content-Type": "application/json" },
+   315→        body: JSON.stringify(payload),
+   316→      });
+   317→      const data = await res.json();
+   318→      if (data.success) {
+   319→        setResultados(data.data.resultados);
+   320→        setLastInput(payload);
+   321→        toast({
+   322→          title: "C\u00e1lculo completado",
+   323→          description: "Requerimientos calculados correctamente.",
+   324→        });
+   325→      } else {
+   326→        setErrores(data.errores || ["Error en el c\u00e1lculo"]);
+   327→      }
+   328→    } catch {
+   329→      setErrores(["Error de conexi\u00f3n con el servidor"]);
+   330→    } finally {
+   331→      setLoading(false);
+   332→    }
+   333→  };
+   334→
+   335→  /* ---- Save ---- */
+   336→  const handleSave = async () => {
+   337→    if (!resultados || !lastInput) return;
+   338→    setSaving(true);
+   339→    try {
+   340→      const res = await fetch("/api/records", {
+   341→        method: "POST",
+   342→        headers: { "Content-Type": "application/json" },
+   343→        body: JSON.stringify({ resultados, input: lastInput }),
+   344→      });
+   345→      const data = await res.json();
+   346→      if (data.success) {
+   347→        toast({
+   348→          title: "Registro guardado",
+   349→          description: "Se guard\u00f3 en el historial correctamente.",
+   350→        });
+   351→        await fetchRecords();
+   352→        setActiveTab("history");
+   353→      }
+   354→    } catch {
+   355→      toast({
+   356→        title: "Error",
+   357→        description: "No se pudo guardar el registro.",
+   358→        variant: "destructive",
+   359→      });
+   360→    } finally {
+   361→      setSaving(false);
+   362→    }
+   363→  };
+   364→
+   365→  /* ---- Delete ---- */
+   366→  const handleDelete = async (id: number) => {
+   367→    try {
+   368→      const res = await fetch(`/api/records/${id}`, { method: "DELETE" });
+   369→      if (res.ok) {
+   370→        setRecords((prev) => prev.filter((r) => r.id !== id));
+   371→        toast({ title: "Registro eliminado" });
+   372→      }
+   373→    } catch {
+   374→      toast({
+   375→        title: "Error",
+   376→        description: "No se pudo eliminar el registro.",
+   377→        variant: "destructive",
+   378→      });
+   379→    }
+   380→  };
+   381→
+   382→  /* ---- Derived ---- */
+   383→  const edadMeses = parseInt(formData.edadMeses) || 0;
+   384→
+   385→  /* ================================================================ */
+   386→  /*  RENDER                                                           */
+   387→  /* ================================================================ */
+   388→  return (
+   389→    <div className="min-h-screen flex flex-col bg-gradient-to-br from-teal-50/40 via-background to-cyan-50/40">
+   390→      {/* ---- Header ---- */}
+   391→      <header className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
+   392→        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+   393→          <div className="flex items-center gap-3">
+   394→            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center shadow-md">
+   395→              <Baby className="w-6 h-6 text-white" />
+   396→            </div>
+   397→            <div>
+   398→              <h1 className="text-xl font-bold text-foreground">Infant</h1>
+   399→              <p className="text-xs text-muted-foreground">
+   400→                Calculadora de Requerimientos Pedi\u00e1tricos
+   401→              </p>
+   402→            </div>
+   403→          </div>
+   404→          <Tabs
+   405→            value={activeTab}
+   406→            onValueChange={setActiveTab}
+   407→            className="w-auto"
+   408→          >
+   409→            <TabsList className="bg-muted">
+   410→              <TabsTrigger value="calculator" className="gap-2">
+   411→                <Calculator className="w-4 h-4" />
+   412→                <span className="hidden sm:inline">Calculadora</span>
+   413→              </TabsTrigger>
+   414→              <TabsTrigger value="history" className="gap-2">
+   415→                <History className="w-4 h-4" />
+   416→                <span className="hidden sm:inline">
+   417→                  Historial ({records.length})
+   418→                </span>
+   419→              </TabsTrigger>
+   420→            </TabsList>
+   421→          </Tabs>
+   422→        </div>
+   423→      </header>
+   424→
+   425→      {/* ---- Main ---- */}
+   426→      <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-8">
+   427→        <AnimatePresence mode="wait">
+   428→          {/* ============ CALCULATOR TAB ============ */}
+   429→          {activeTab === "calculator" && (
+   430→            <motion.div
+   431→              key="calculator"
+   432→              initial={{ opacity: 0, x: -20 }}
+   433→              animate={{ opacity: 1, x: 0 }}
+   434→              exit={{ opacity: 0, x: 20 }}
+   435→              className="space-y-6"
+   436→            >
+   437→              <div className="text-center space-y-2">
+   438→                <h2 className="text-2xl sm:text-3xl font-bold text-foreground">
+   439→                  Requerimientos Nutricionales y de Energ\u00eda
+   440→                </h2>
+   441→                <p className="text-muted-foreground text-sm sm:text-base max-w-2xl mx-auto">
+   442→                  C\u00e1lculos basados en ecuaciones de Schofield, FAO/WHO/UNU 2004
+   443→                  y Dietary Reference Intakes. Basado en{" "}
+   444→                  <em>"Pediatric Nutrition in Practice"</em> (Koletzko et al.,
+   445→                  2015).
+   446→                </p>
+   447→              </div>
+   448→
+   449→              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+   450→                {/* ---- Patient Form ---- */}
+   451→                <motion.div
+   452→                  initial={{ opacity: 0, y: 20 }}
+   453→                  animate={{ opacity: 1, y: 0 }}
+   454→                  transition={{ delay: 0.1 }}
+   455→                >
+   456→                  <Card>
+   457→                    <CardHeader className="pb-4">
+   458→                      <CardTitle className="text-lg flex items-center gap-2">
+   459→                        <FlaskConical className="w-5 h-5 text-teal-600" />
+   460→                        Datos del Paciente
+   461→                      </CardTitle>
+   462→                      <CardDescription>
+   463→                        Edad 0 a 18 a\u00f1os. Complete los campos requeridos.
+   464→                      </CardDescription>
+   465→                    </CardHeader>
+   466→                    <CardContent className="space-y-5">
+   467→                      {/* Peso */}
+   468→                      <div className="space-y-2">
+   469→                        <Label htmlFor="peso">Peso (kg)</Label>
+   470→                        <Input
+   471→                          id="peso"
+   472→                          name="peso"
+   473→                          type="number"
+   474→                          step="0.01"
+   475→                          min="0.1"
+   476→                          max="120"
+   477→                          placeholder="Ej: 3.5"
+   478→                          value={formData.peso}
+   479→                          onChange={handleInputChange}
+   480→                        />
+   481→                      </div>
+   482→
+   483→                      {/* Edad */}
+   484→                      <div className="space-y-2">
+   485→                        <Label htmlFor="edadMeses">Edad (meses)</Label>
+   486→                        <Input
+   487→                          id="edadMeses"
+   488→                          name="edadMeses"
+   489→                          type="number"
+   490→                          step="1"
+   491→                          min="0"
+   492→                          max="216"
+   493→                          placeholder="0-216"
+   494→                          value={formData.edadMeses}
+   495→                          onChange={handleInputChange}
+   496→                        />
+   497→                        {formData.edadMeses &&
+   498→                          parseInt(formData.edadMeses) >= 0 && (
+   499→                            <p className="text-xs text-muted-foreground">
+   500→                              {formatEdad(parseInt(formData.edadMeses))}
+   501→                            </p>
+   502→                          )}
+   503→                      </div>
+   504→
+   505→                      {/* Sexo */}
+   506→                      <div className="space-y-2">
+   507→                        <Label>Sexo</Label>
+   508→                        <Select
+   509→                          value={formData.sexo}
+   510→                          onValueChange={(v) => handleSelectChange("sexo", v)}
+   511→                        >
+   512→                          <SelectTrigger>
+   513→                            <SelectValue placeholder="Seleccione..." />
+   514→                          </SelectTrigger>
+   515→                          <SelectContent>
+   516→                            <SelectItem value="masculino">Masculino</SelectItem>
+   517→                            <SelectItem value="femenino">Femenino</SelectItem>
+   518→                          </SelectContent>
+   519→                        </Select>
+   520→                      </div>
+   521→
+   522→                      {/* Edad Gestacional (solo si <= 12 meses) */}
+   523→                      {edadMeses <= 12 && (
+   524→                        <motion.div
+   525→                          initial={{ opacity: 0, height: 0 }}
+   526→                          animate={{ opacity: 1, height: "auto" }}
+   527→                          className="space-y-2"
+   528→                        >
+   529→                          <Label htmlFor="edadGestacional">
+   530→                            Edad Gestacional (semanas)
+   531→                          </Label>
+   532→                          <Input
+   533→                            id="edadGestacional"
+   534→                            name="edadGestacional"
+   535→                            type="number"
+   536→                            step="1"
+   537→                            min="22"
+   538→                            max="44"
+   539→                            placeholder="22-44 sem"
+   540→                            value={formData.edadGestacional}
+   541→                            onChange={handleInputChange}
+   542→                          />
+   543→                          {formData.edadGestacional && (
+   544→                            <p className="text-xs text-muted-foreground">
+   545→                              {parseInt(formData.edadGestacional) < 37
+   546→                                ? "Prematuro (<37 sem)"
+   547→                                : "A t\u00e9rmino"}
+   548→                            </p>
+   549→                          )}
+   550→                        </motion.div>
+   551→                      )}
+   552→
+   553→                      {/* Talla */}
+   554→                      <div className="space-y-2">
+   555→                        <Label htmlFor="talla">Talla (cm)</Label>
+   556→                        <Input
+   557→                          id="talla"
+   558→                          name="talla"
+   559→                          type="number"
+   560→                          step="0.1"
+   561→                          min="20"
+   562→                          max="200"
+   563→                          placeholder="Opcional - Ej: 52"
+   564→                          value={formData.talla}
+   565→                          onChange={handleInputChange}
+   566→                        />
+   567→                      </div>
+   568→
+   569→                      {/* Nivel de Actividad */}
+   570→                      <div className="space-y-2">
+   571→                        <Label>Nivel de Actividad F\u00edsica</Label>
+   572→                        <Select
+   573→                          value={formData.nivelActividad}
+   574→                          onValueChange={(v) =>
+   575→                            handleSelectChange("nivelActividad", v)
+   576→                          }
+   577→                        >
+   578→                          <SelectTrigger>
+   579→                            <SelectValue />
+   580→                          </SelectTrigger>
+   581→                          <SelectContent>
+   582→                            <SelectItem value="sedentario">
+   583→                              Sedentario (PAL ~1.2)
+   584→                            </SelectItem>
+   585→                            <SelectItem value="ligero">
+   586→                              Ligero (PAL ~1.5)
+   587→                            </SelectItem>
+   588→                            <SelectItem value="moderado">
+   589→                              Moderado (PAL ~1.7)
+   590→                            </SelectItem>
+   591→                            <SelectItem value="activo">
+   592→                              Activo (PAL ~1.9)
+   593→                            </SelectItem>
+   594→                            <SelectItem value="muy_activo">
+   595→                              Muy Activo (PAL ~2.0)
+   596→                            </SelectItem>
+   597→                          </SelectContent>
+   598→                        </Select>
+   599→                      </div>
+   600→
+   601→                      {/* Errores */}
+   602→                      <AnimatePresence>
+   603→                        {errores.length > 0 && (
+   604→                          <motion.div
+   605→                            initial={{ opacity: 0, height: 0 }}
+   606→                            animate={{ opacity: 1, height: "auto" }}
+   607→                            exit={{ opacity: 0, height: 0 }}
+   608→                            className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 space-y-1"
+   609→                          >
+   610→                            {errores.map((err, i) => (
+   611→                              <p
+   612→                                key={i}
+   613→                                className="text-sm text-destructive flex items-center gap-2"
+   614→                              >
+   615→                                <AlertCircle className="w-4 h-4 shrink-0" />{" "}
+   616→                                {err}
+   617→                              </p>
+   618→                            ))}
+   619→                          </motion.div>
+   620→                        )}
+   621→                      </AnimatePresence>
+   622→
+   623→                      {/* Botón Calcular */}
+   624→                      <Button
+   625→                        onClick={handleCalculate}
+   626→                        disabled={loading}
+   627→                        className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white shadow-md h-12 text-base"
+   628→                      >
+   629→                        {loading ? (
+   630→                          <span className="flex items-center gap-2">
+   631→                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+   632→                            Calculando...
+   633→                          </span>
+   634→                        ) : (
+   635→                          <span className="flex items-center gap-2">
+   636→                            <Calculator className="w-5 h-5" />
+   637→                            Calcular Requerimientos
+   638→                          </span>
+   639→                        )}
+   640→                      </Button>
+   641→                    </CardContent>
+   642→                  </Card>
+   643→                </motion.div>
+   644→
+   645→                {/* ---- Results ---- */}
+   646→                <motion.div
+   647→                  initial={{ opacity: 0, y: 20 }}
+   648→                  animate={{ opacity: 1, y: 0 }}
+   649→                  transition={{ delay: 0.2 }}
+   650→                  className="space-y-4"
+   651→                >
+   652→                  {resultados ? (
+   653→                    <>
+   654→                      <Card className="border-teal-200/50 bg-gradient-to-br from-teal-50/50 to-card">
+   655→                        <CardHeader className="pb-4">
+   656→                          <div className="flex items-center justify-between flex-wrap gap-2">
+   657→                            <CardTitle className="text-lg flex items-center gap-2">
+   658→                              <Heart className="w-5 h-5 text-teal-600" />
+   659→                              Resultados
+   660→                            </CardTitle>
+   661→                            <div className="flex gap-2">
+   662→                              {resultados.esPrematuro && (
+   663→                                <Badge
+   664→                                  variant="secondary"
+   665→                                  className="bg-amber-100 text-amber-800 hover:bg-amber-100"
+   666→                                >
+   667→                                  Prematuro
+   668→                                </Badge>
+   669→                              )}
+   670→                              <Badge
+   671→                                variant="secondary"
+   672→                                className="bg-teal-100 text-teal-800 hover:bg-teal-100"
+   673→                              >
+   674→                                PAL: {resultados.factorPAL}
+   675→                              </Badge>
+   676→                            </div>
+   677→                          </div>
+   678→                          <CardDescription>
+   679→                            Koletzko et al. - Pediatric Nutrition in Practice
+   680→                            (2015)
+   681→                          </CardDescription>
+   682→                        </CardHeader>
+   683→                        <CardContent className="space-y-1">
+   684→                          {/* Energeticos */}
+   685→                          <ResultItem
+   686→                            icon={
+   687→                              <Flame className="w-4 h-4 text-rose-500" />
+   688→                            }
+   689→                            label="Tasa Metab\u00f3lica Basal (BMR)"
+   690→                            value={`${resultados.tasaMetabolicaBasal} kcal/d\u00eda`}
+   691→                            detail={resultados.metodoBMR}
+   692→                            colorClass="bg-rose-100"
+   693→                          />
+   694→                          <ResultItem
+   695→                            icon={
+   696→                              <Activity className="w-4 h-4 text-blue-500" />
+   697→                            }
+   698→                            label="Gasto Energ\u00e9tico Total (TEE)"
+   699→                            value={`${resultados.gastoEnergeticoTotal} kcal/d\u00eda`}
+   700→                            detail={resultados.metodoTEE}
+   701→                            colorClass="bg-blue-100"
+   702→                          />
+   703→                          <ResultItem
+   704→                            icon={
+   705→                              <Zap className="w-4 h-4 text-amber-500" />
+   706→                            }
+   707→                            label="Requerimiento Energ\u00e9tico Total"
+   708→                            value={`${resultados.requerimientoEnergetico} kcal/d\u00eda`}
+   709→                            detail={`${resultados.requerimientoEnergeticoPorKg} kcal/kg/d\u00eda \u2014 BMR \u00d7 PAL ${resultados.factorPAL}`}
+   710→                            colorClass="bg-amber-100"
+   711→                            highlight
+   712→                          />
+   713→                          {resultados.costoEnergiaCrecimiento > 0 && (
+   714→                            <ResultItem
+   715→                              icon={
+   716→                                <TrendingUp className="w-4 h-4 text-green-500" />
+   717→                              }
+   718→                              label="Costo Energ\u00e9tico de Crecimiento"
+   719→                              value={`${resultados.costoEnergiaCrecimiento} kcal/d\u00eda`}
+   720→                              detail="Energ\u00eda depositada en nuevo tejido"
+   721→                              colorClass="bg-green-100"
+   722→                            />
+   723→                          )}
+   724→                          <Separator />
+   725→                          {/* Liquidos */}
+   726→                          <ResultItem
+   727→                            icon={
+   728→                              <Droplets className="w-4 h-4 text-cyan-500" />
+   729→                            }
+   730→                            label="Requerimiento de L\u00edquidos"
+   731→                            value={`${resultados.requerimientoLiquidos} mL/d\u00eda`}
+   732→                            detail={`${resultados.requerimientoLiquidosPorKg} mL/kg/d\u00eda (Holliday-Segar)`}
+   733→                            colorClass="bg-cyan-100"
+   734→                          />
+   735→                          <Separator />
+   736→                          {/* Proteinas */}
+   737→                          <ResultItem
+   738→                            icon={
+   739→                              <ShieldPlus className="w-4 h-4 text-emerald-500" />
+   740→                            }
+   741→                            label="Requerimiento de Prote\u00ednas"
+   742→                            value={resultados.requerimientoProteinasRango}
+   743→                            detail={`Total: ${resultados.proteinasTotales} g/d\u00eda \u2014 RDA: ${resultados.requerimientoProteinasRDA} g/kg`}
+   744→                            colorClass="bg-emerald-100"
+   745→                          />
+   746→                          {/* Sodio */}
+   747→                          <ResultItem
+   748→                            icon={
+   749→                              <ShieldPlus className="w-4 h-4 text-orange-500" />
+   750→                            }
+   751→                            label="Requerimiento de Sodio"
+   752→                            value={resultados.requerimientoSodioRango}
+   753→                            detail={`${(resultados.requerimientoSodio * parseFloat(formData.peso)).toFixed(1)} mEq totales estimados`}
+   754→                            colorClass="bg-orange-100"
+   755→                          />
+   756→                          {/* Potasio */}
+   757→                          <ResultItem
+   758→                            icon={
+   759→                              <ShieldPlus className="w-4 h-4 text-violet-500" />
+   760→                            }
+   761→                            label="Requerimiento de Potasio"
+   762→                            value={resultados.requerimientoPotasioRango}
+   763→                            detail={`${(resultados.requerimientoPotasio * parseFloat(formData.peso)).toFixed(1)} mEq totales estimados`}
+   764→                            colorClass="bg-violet-100"
+   765→                          />
+   766→                          <Separator />
+   767→                          {/* Superficie Corporal */}
+   768→                          <ResultItem
+   769→                            icon={
+   770→                              <Ruler className="w-4 h-4 text-indigo-500" />
+   771→                            }
+   772→                            label="Superficie Corporal (Mosteller)"
+   773→                            value={`${resultados.superficieCorporal} m\u00b2`}
+   774→                            detail="F\u00f3rmula: \u221a(peso \u00d7 talla / 3600)"
+   775→                            colorClass="bg-indigo-100"
+   776→                          />
+   777→                        </CardContent>
+   778→                      </Card>
+   779→
+   780→                      <Button
+   781→                        onClick={handleSave}
+   782→                        disabled={saving}
+   783→                        variant="outline"
+   784→                        className="w-full border-teal-300 text-teal-700 hover:bg-teal-50 h-12 text-base"
+   785→                      >
+   786→                        {saving ? (
+   787→                          <span className="flex items-center gap-2">
+   788→                            <span className="w-4 h-4 border-2 border-teal-300 border-t-teal-700 rounded-full animate-spin" />
+   789→                            Guardando...
+   790→                          </span>
+   791→                        ) : (
+   792→                          <span className="flex items-center gap-2">
+   793→                            <Save className="w-5 h-5" />
+   794→                            Guardar en Historial
+   795→                          </span>
+   796→                        )}
+   797→                      </Button>
+   798→                    </>
+   799→                  ) : (
+   800→                    <Card className="border-dashed">
+   801→                      <CardContent>
+   802→                        <EmptyState
+   803→                          icon={Baby}
+   804→                          title="Sin resultados a\u00fan"
+   805→                          description="Complete los datos del paciente y presione Calcular Requerimientos para ver los resultados."
+   806→                        />
+   807→                      </CardContent>
+   808→                    </Card>
+   809→                  )}
+   810→                </motion.div>
+   811→              </div>
+   812→            </motion.div>
+   813→          )}
+   814→
+   815→          {/* ============ HISTORY TAB ============ */}
+   816→          {activeTab === "history" && (
+   817→            <motion.div
+   818→              key="history"
+   819→              initial={{ opacity: 0, x: 20 }}
+   820→              animate={{ opacity: 1, x: 0 }}
+   821→              exit={{ opacity: 0, x: -20 }}
+   822→              className="space-y-6"
+   823→            >
+   824→              <div className="flex items-center justify-between">
+   825→                <div>
+   826→                  <h2 className="text-2xl font-bold text-foreground">
+   827→                    Historial de C\u00e1lculos
+   828→                  </h2>
+   829→                  <p className="text-muted-foreground text-sm">
+   830→                    {records.length} registro
+   831→                    {records.length !== 1 ? "s" : ""}
+   832→                  </p>
+   833→                </div>
+   834→                <Button
+   835→                  variant="outline"
+   836→                  onClick={fetchRecords}
+   837→                  className="text-muted-foreground"
+   838→                >
+   839→                  <RefreshCw className="w-4 h-4 mr-2" />
+   840→                  Actualizar
+   841→                </Button>
+   842→              </div>
+   843→
+   844→              {records.length > 0 ? (
+   845→                <Card>
+   846→                  <CardContent className="p-0">
+   847→                    <div className="overflow-x-auto">
+   848→                      <Table>
+   849→                        <TableHeader>
+   850→                          <TableRow className="bg-muted/50 hover:bg-muted/50">
+   851→                            <TableHead>Fecha</TableHead>
+   852→                            <TableHead>Sexo</TableHead>
+   853→                            <TableHead>Peso</TableHead>
+   854→                            <TableHead>Edad</TableHead>
+   855→                            <TableHead>Actividad</TableHead>
+   856→                            <TableHead>Calor\u00edas</TableHead>
+   857→                            <TableHead>L\u00edquidos</TableHead>
+   858→                            <TableHead>Prote\u00ednas</TableHead>
+   859→                            <TableHead className="text-right">
+   860→                              Acci\u00f3n
+   861→                            </TableHead>
+   862→                          </TableRow>
+   863→                        </TableHeader>
+   864→                        <TableBody>
+   865→                          {records.map((r) => (
+   866→                            <TableRow key={r.id}>
+   867→                              <TableCell className="text-sm text-muted-foreground">
+   868→                                {formatFecha(r.createdAt)}
+   869→                              </TableCell>
+   870→                              <TableCell>
+   871→                                <Badge variant="outline">
+   872→                                  {r.sexo === "masculino" ? "M" : "F"}
+   873→                                </Badge>
+   874→                              </TableCell>
+   875→                              <TableCell className="font-medium">
+   876→                                {r.peso} kg
+   877→                              </TableCell>
+   878→                              <TableCell className="text-sm">
+   879→                                {formatEdad(r.edadMeses)}
+   880→                              </TableCell>
+   881→                              <TableCell className="text-xs text-muted-foreground">
+   882→                                PAL {r.factorPAL}
+   883→                              </TableCell>
+   884→                              <TableCell className="text-sm font-medium text-amber-700">
+   885→                                {r.requerimientoEnergetico} kcal
+   886→                              </TableCell>
+   887→                              <TableCell className="text-sm font-medium text-cyan-700">
+   888→                                {r.requerimientoLiquidos} mL
+   889→                              </TableCell>
+   890→                              <TableCell className="text-sm font-medium text-emerald-700">
+   891→                                {r.requerimientoProteinasRDA} g/kg
+   892→                              </TableCell>
+   893→                              <TableCell className="text-right">
+   894→                                <Button
+   895→                                  variant="ghost"
+   896→                                  size="sm"
+   897→                                  onClick={() => handleDelete(r.id)}
+   898→                                  className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
+   899→                                >
+   900→                                  <Trash2 className="w-4 h-4" />
+   901→                                </Button>
+   902→                              </TableCell>
+   903→                            </TableRow>
+   904→                          ))}
+   905→                        </TableBody>
+   906→                      </Table>
+   907→                    </div>
+   908→                  </CardContent>
+   909→                </Card>
+   910→              ) : (
+   911→                <Card className="border-dashed">
+   912→                  <CardContent>
+   913→                    <EmptyState
+   914→                      icon={History}
+   915→                      title="No hay registros"
+   916→                      description="Los c\u00e1lculos guardados aparecer\u00e1n aqu\u00ed."
+   917→                      action={
+   918→                        <Button
+   919→                          variant="outline"
+   920→                          onClick={() => setActiveTab("calculator")}
+   921→                        >
+   922→                          Ir a Calculadora
+   923→                        </Button>
+   924→                      }
+   925→                    />
+   926→                  </CardContent>
+   927→                </Card>
+   928→              )}
+   929→            </motion.div>
+   930→          )}
+   931→        </AnimatePresence>
+   932→      </main>
+   933→
+   934→      {/* ---- Footer ---- */}
+   935→      <footer className="border-t bg-background/60 backdrop-blur-sm mt-auto">
+   936→        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4">
+   937→          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
+   938→            <p>
+   939→              Infant v2.0 \u2014 Calculadora de Requerimientos Nutricionales
+   940→              Pedi\u00e1tricos
+   941→            </p>
+   942→            <p>
+   943→              Fuente: Pediatric Nutrition in Practice (Koletzko et al., 2015)
+   944→            </p>
+   945→          </div>
+   946→        </div>
+   947→      </footer>
+   948→    </div>
+   949→  );
+   950→}
+   951→
