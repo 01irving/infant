@@ -1,0 +1,660 @@
+     1→"""
+     2→Infant - Calculadora de Requerimientos Nutricionales Pediátricos
+     3→Evaluación Antropométrica - Capítulo 1.2
+     4→Basado en: Pediatric Nutrition in Practice (Koletzko et al., 2015)
+     5→
+     6→Para ejecutar:
+     7→  pip install streamlit
+     8→  streamlit run infant_app.py
+     9→
+    10→O en Google Colab:
+    11→  !pip install streamlit
+    12→  !streamlit run infant_app.py &>/dev/null &
+    13→  # Luego abrir el enlace localtunnel que aparece
+    14→"""
+    15→
+    16→import streamlit as st
+    17→import math
+    18→
+    19→# ============================================================
+    20→#  CONFIGURACIÓN DE PÁGINA
+    21→# ============================================================
+    22→st.set_page_config(
+    23→    page_title="Infant - Calculadora Pediátrica",
+    24→    page_icon="👶",
+    25→    layout="wide",
+    26→    initial_sidebar_state="expanded",
+    27→)
+    28→
+    29→# ============================================================
+    30→#  CSS PERSONALIZADO
+    31→# ============================================================
+    32→st.markdown("""
+    33→<style>
+    34→    .main-header {
+    35→        background: linear-gradient(135deg, #0d9488 0%, #06b6d4 100%);
+    36→        padding: 1.5rem 2rem;
+    37→        border-radius: 12px;
+    38→        color: white;
+    39→        margin-bottom: 1.5rem;
+    40→    }
+    41→    .main-header h1 { margin: 0; font-size: 1.8rem; }
+    42→    .main-header p { margin: 0.3rem 0 0; opacity: 0.9; font-size: 0.9rem; }
+    43→    .card {
+    44→        background: white;
+    45→        border: 1px solid #e5e7eb;
+    46→        border-radius: 12px;
+    47→        padding: 1.2rem;
+    48→        margin-bottom: 1rem;
+    49→        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    50→    }
+    51→    .card-green { border-left: 4px solid #10b981; background: #f0fdf4; }
+    52→    .card-yellow { border-left: 4px solid #f59e0b; background: #fffbeb; }
+    53→    .card-orange { border-left: 4px solid #f97316; background: #fff7ed; }
+    54→    .card-red { border-left: 4px solid #ef4444; background: #fef2f2; }
+    55→    .card-violet { border-left: 4px solid #8b5cf6; background: #f5f3ff; }
+    56→    .card-teal { border-left: 4px solid #14b8a6; background: #f0fdfa; }
+    57→    .metric-row {
+    58→        display: flex;
+    59→        align-items: center;
+    60→        gap: 0.75rem;
+    61→        padding: 0.6rem 0;
+    62→        border-bottom: 1px solid #f3f4f6;
+    63→    }
+    64→    .metric-row:last-child { border-bottom: none; }
+    65→    .metric-icon {
+    66→        width: 36px; height: 36px;
+    67→        border-radius: 8px;
+    68→        display: flex; align-items: center; justify-content: center;
+    69→        font-size: 1.1rem; flex-shrink: 0;
+    70→    }
+    71→    .metric-label { font-size: 0.75rem; color: #6b7280; margin: 0; }
+    72→    .metric-value { font-size: 0.9rem; font-weight: 600; margin: 0.15rem 0; }
+    73→    .metric-detail { font-size: 0.7rem; color: #9ca3af; margin: 0; }
+    74→    .badge {
+    75→        display: inline-block;
+    76→        padding: 0.15rem 0.6rem;
+    77→        border-radius: 9999px;
+    78→        font-size: 0.7rem;
+    79→        font-weight: 600;
+    80→    }
+    81→    .badge-green { background: #d1fae5; color: #065f46; }
+    82→    .badge-yellow { background: #fef3c7; color: #92400e; }
+    83→    .badge-orange { background: #ffedd5; color: #9a3412; }
+    84→    .badge-red { background: #fee2e2; color: #991b1b; }
+    85→    .badge-blue { background: #dbeafe; color: #1e40af; }
+    86→    .section-title {
+    87→        font-size: 1rem;
+    88→        font-weight: 600;
+    89→        margin: 0 0 0.3rem;
+    90→        display: flex;
+    91→        align-items: center;
+    92→        gap: 0.5rem;
+    93→    }
+    94→    .section-desc {
+    95→        font-size: 0.75rem;
+    96→        color: #6b7280;
+    97→        margin: 0 0 0.8rem;
+    98→    }
+    99→    table.history-table {
+   100→        width: 100%;
+   101→        border-collapse: collapse;
+   102→        font-size: 0.8rem;
+   103→    }
+   104→    table.history-table th {
+   105→        background: #f9fafb;
+   106→        padding: 0.5rem;
+   107→        text-align: left;
+   108→        border-bottom: 2px solid #e5e7eb;
+   109→        font-weight: 600;
+   110→        color: #374151;
+   111→    }
+   112→    table.history-table td {
+   113→        padding: 0.5rem;
+   114→        border-bottom: 1px solid #f3f4f6;
+   115→        color: #4b5563;
+   116→    }
+   117→    .footer {
+   118→        text-align: center;
+   119→        font-size: 0.7rem;
+   120→        color: #9ca3af;
+   121→        padding: 1rem;
+   122→        border-top: 1px solid #f3f4f6;
+   123→        margin-top: 2rem;
+   124→    }
+   125→</style>
+   126→""", unsafe_allow_html=True)
+   127→
+   128→# ============================================================
+   129→#  FUNCIONES DE CÁLCULO - Capítulo 1.2
+   130→# ============================================================
+   131→
+   132→def costo_crecimiento(edad_meses):
+   133→    if edad_meses <= 3: return 175
+   134→    if edad_meses <= 6: return 60
+   135→    if edad_meses <= 12: return 20
+   136→    if edad_meses <= 36: return 3
+   137→    return 0
+   138→
+   139→def calcular_bmr(peso, edad_meses, sexo):
+   140→    """Ecuaciones de Schofield por rango de edad y sexo"""
+   141→    if edad_meses < 36:
+   142→        if sexo == "masculino":
+   143→            return 59.5 * peso - 30.4, "Schofield (<3 años, M): 59.5×peso - 30.4"
+   144→        return 58.3 * peso - 31.1, "Schofield (<3 años, F): 58.3×peso - 31.1"
+   145→    elif edad_meses < 120:
+   146→        if sexo == "masculino":
+   147→            return 22.7 * peso + 504.3, "Schofield (3-10 años, M): 22.7×peso + 504.3"
+   148→        return 20.3 * peso + 485.9, "Schofield (3-10 años, F): 20.3×peso + 485.9"
+   149→    else:
+   150→        if sexo == "masculino":
+   151→            return 17.7 * peso + 658.2, "Schofield (10-18 años, M): 17.7×peso + 658.2"
+   152→        return 13.4 * peso + 692.6, "Schofield (10-18 años, F): 13.4×peso + 692.6"
+   153→
+   154→def calcular_tee(peso, edad_meses, sexo):
+   155→    """TEE - Método DLW (Doubly Labeled Water)"""
+   156→    if edad_meses <= 24:
+   157→        return -99.4 + 88.6 * peso, "TEE infantes (DLW): -99.4 + 88.6×peso"
+   158→    w2 = peso * peso
+   159→    if sexo == "masculino":
+   160→        return 310.2 + 63.3 * peso - 0.263 * w2, "TEE niños (DLW+HR): 310.2 + 63.3×p - 0.263×p²"
+   161→    return 263.4 + 65.3 * peso - 0.454 * w2, "TEE niñas (DLW+HR): 263.4 + 65.3×p - 0.454×p²"
+   162→
+   163→PAL_VALUES = {
+   164→    "sedentario": 1.2, "ligero": 1.5, "moderado": 1.7,
+   165→    "activo": 1.9, "muy_activo": 2.0
+   166→}
+   167→
+   168→def calcular_liquidos(peso):
+   169→    """Holliday-Segar por peso"""
+   170→    if peso <= 10: return peso * 100
+   171→    if peso <= 20: return 1000 + (peso - 10) * 50
+   172→    return 1500 + (peso - 20) * 20
+   173→
+   174→def calcular_proteinas(edad_meses, sexo, es_prematuro):
+   175→    """EAR/RDA por rangos de edad"""
+   176→    if es_prematuro:
+   177→        return 3.0, 4.0, "3.0 - 4.0 g/kg/día (Prematuro - OMS/FAO/UNU)"
+   178→    if edad_meses <= 6: return 1.52, 1.52, "1.52 g/kg/día (AI - leche materna)"
+   179→    if edad_meses <= 12: return 1.0, 1.2, "1.0 - 1.2 g/kg/día (EAR-RDA)"
+   180→    if edad_meses <= 36: return 0.87, 1.05, "0.87 - 1.05 g/kg/día (EAR-RDA)"
+   181→    if edad_meses <= 156: return 0.76, 0.95, "0.76 - 0.95 g/kg/día (EAR-RDA)"
+   182→    if sexo == "masculino": return 0.73, 0.85, "0.73 - 0.85 g/kg/día (EAR-RDA)"
+   183→    return 0.71, 0.85, "0.71 - 0.85 g/kg/día (EAR-RDA)"
+   184→
+   185→def calcular_sodio(edad_gestacional, edad_meses):
+   186→    if edad_gestacional is not None and edad_gestacional < 37 and edad_meses <= 1:
+   187→        return 3.0, "2.0 - 5.0 mEq/kg/día (Prematuro)"
+   188→    return 1.5, "1.0 - 2.0 mEq/kg/día"
+   189→
+   190→def calcular_potasio(edad_gestacional, edad_meses):
+   191→    if edad_gestacional is not None and edad_gestacional < 37 and edad_meses <= 1:
+   192→        return 1.5, "1.0 - 2.0 mEq/kg/día (Prematuro)"
+   193→    return 1.5, "1.0 - 2.0 mEq/kg/día"
+   194→
+   195→def calcular_superficie_corporal(peso, talla_cm=None, edad_meses=None):
+   196→    """Fórmula de Mosteller"""
+   197→    if talla_cm is None:
+   198→        if edad_meses is not None:
+   199→            if edad_meses <= 6: talla_cm = 50 + edad_meses * 2.5
+   200→            elif edad_meses <= 12: talla_cm = 65 + (edad_meses - 6) * 1.2
+   201→            else: talla_cm = 75 + (edad_meses / 12) * 6
+   202→        else:
+   203→            talla_cm = 55
+   204→    return math.sqrt((peso * talla_cm) / 3600)
+   205→
+   206→# --- Cap. 1.2: Crecimiento Normal ---
+   207→
+   208→def velocidad_peso_esperada(edad_meses):
+   209→    if edad_meses <= 3: return "200 g/semana (0-3 meses)"
+   210→    if edad_meses <= 6: return "130 g/semana (3-6 meses)"
+   211→    if edad_meses <= 9: return "85 g/semana (6-9 meses)"
+   212→    if edad_meses <= 12: return "75 g/semana (9-12 meses)"
+   213→    if edad_meses <= 24: return "~25 g/semana (duplica al 4m, triplica al 12m)"
+   214→    return "Variable por individuo; usar curvas OMS"
+   215→
+   216→def velocidad_talla_esperada(edad_meses):
+   217→    if edad_meses <= 12: return "25 cm en el primer año (~2 cm/mes)"
+   218→    if edad_meses <= 24: return "12 cm en el segundo año (~1 cm/mes)"
+   219→    if edad_meses <= 132: return "5-7 cm/año (crecimiento estable)"
+   220→    return "Variable con pubertad; pico ~8-12 cm/año"
+   221→
+   222→def perimetro_cefalico_esperado(edad_meses, sexo):
+   223→    adulto = 56.5 if sexo == "masculino" else 54.5
+   224→    if edad_meses <= 12: return 34.5 + edad_meses * 1.0
+   225→    if edad_meses <= 24: return 46.5 + ((edad_meses - 12) / 12) * 2
+   226→    hc2 = 48.5
+   227→    if edad_meses <= 216:
+   228→        p = min(1, (edad_meses - 24) / (216 - 24))
+   229→        return hc2 + (adulto - hc2) * p
+   230→    return adulto
+   231→
+   232→def clasificar_perimetro_cefalico(actual, esperado):
+   233→    d = ((actual - esperado) / esperado) * 100
+   234→    if d < -10: return "Bajo (<-2 DE) - Evaluar microcefalia", "red"
+   235→    if d < -5: return "Ligeramente bajo (-1 a -2 DE)", "yellow"
+   236→    if d <= 5: return "Normal (±2 DE)", "green"
+   237→    if d <= 10: return "Ligeramente alto (+1 a +2 DE)", "yellow"
+   238→    return "Alto (>+2 DE) - Evaluar macrocefalia", "yellow"
+   239→
+   240→def calcular_bmi(peso, talla_cm):
+   241→    talla_m = talla_cm / 100
+   242→    return round(peso / (talla_m ** 2), 2)
+   243→
+   244→def clasificar_bmi(bmi, edad_meses):
+   245→    if edad_meses < 24:
+   246→        return f"{bmi} - Usar curvas OMS para <2 años", "yellow"
+   247→    if bmi < 18.5: return f"{bmi} - Bajo peso", "orange"
+   248→    if bmi < 25: return f"{bmi} - Normal", "green"
+   249→    if bmi < 30: return f"{bmi} - Sobrepeso", "yellow"
+   250→    return f"{bmi} - Obesidad", "red"
+   251→
+   252→def peso_esperado_para_talla(talla_cm, sexo):
+   253→    m = sexo == "masculino"
+   254→    if talla_cm <= 50: return 3.2 if m else 3.1
+   255→    if talla_cm <= 60: return 5.7 if m else 5.5
+   256→    if talla_cm <= 70: return 7.8 if m else 7.5
+   257→    if talla_cm <= 80: return 10.2 if m else 9.8
+   258→    if talla_cm <= 90: return 12.5 if m else 12.0
+   259→    if talla_cm <= 100: return 15.5 if m else 15.0
+   260→    if talla_cm <= 110: return 18.5 if m else 18.0
+   261→    if talla_cm <= 120: return 22.0 if m else 21.5
+   262→    if talla_cm <= 130: return 26.5 if m else 26.0
+   263→    if talla_cm <= 140: return 32.5 if m else 32.0
+   264→    if talla_cm <= 150: return 40.0 if m else 40.5
+   265→    if talla_cm <= 160: return 48.5 if m else 49.5
+   266→    if talla_cm <= 170: return 58.0 if m else 58.0
+   267→    if talla_cm <= 180: return 67.0 if m else 65.0
+   268→    return 72.0 if m else 68.0
+   269→
+   270→def clasificar_peso_talla(pct):
+   271→    if pct > 120: return f"{pct}% - Obesidad", "red"
+   272→    if pct > 110: return f"{pct}% - Sobrepeso", "yellow"
+   273→    if pct >= 90: return f"{pct}% - Normal", "green"
+   274→    if pct >= 80: return f"{pct}% - Desnutrición leve", "orange"
+   275→    if pct >= 70: return f"{pct}% - Desnutrición moderada", "orange"
+   276→    return f"{pct}% - Desnutrición severa", "red"
+   277→
+   278→def talla_esperada_para_edad(edad_meses, sexo):
+   279→    m = sexo == "masculino"
+   280→    if edad_meses <= 3: return (50 + edad_meses * 3.8) if m else (49.1 + edad_meses * 3.7)
+   281→    if edad_meses <= 6: return (61.4 + (edad_meses - 3) * 2.7) if m else (60.2 + (edad_meses - 3) * 2.5)
+   282→    if edad_meses <= 12: return (69.5 + (edad_meses - 6) * 2.1) if m else (67.7 + (edad_meses - 6) * 2.0)
+   283→    if edad_meses <= 24: return (82.1 + (edad_meses - 12) * 1.0) if m else (79.7 + (edad_meses - 12) * 1.0)
+   284→    if edad_meses <= 60: return (94.1 + (edad_meses - 24) * 0.6) if m else (91.7 + (edad_meses - 24) * 0.6)
+   285→    if edad_meses <= 120: return (115.7 + (edad_meses - 60) * 0.55) if m else (114.3 + (edad_meses - 60) * 0.6)
+   286→    if edad_meses <= 156: return (148.7 + (edad_meses - 120) * 0.65) if m else (149.9 + (edad_meses - 120) * 0.35)
+   287→    return 172.1 if m else 162.5
+   288→
+   289→def clasificar_talla_edad(pct):
+   290→    if pct >= 95: return f"{pct}% - Normal", "green"
+   291→    if pct >= 90: return f"{pct}% - Riesgo de talla baja", "yellow"
+   292→    if pct >= 85: return f"{pct}% - Talla baja (desnutrición crónica leve)", "orange"
+   293→    return f"{pct}% - Retardo severo (stunting)", "red"
+   294→
+   295→def clasificar_muac(muac_mm, edad_meses):
+   296→    if edad_meses < 6 or edad_meses > 60:
+   297→        return f"{muac_mm} mm - Ref: 115-185 mm (6-60 meses)", "yellow"
+   298→    if muac_mm < 115: return f"{muac_mm} mm - Desnutrición aguda severa (riesgo muerte)", "red"
+   299→    if muac_mm < 125: return f"{muac_mm} mm - Desnutrición aguda moderada", "orange"
+   300→    if muac_mm < 135: return f"{muac_mm} mm - Riesgo de desnutrición", "yellow"
+   301→    if muac_mm <= 185: return f"{muac_mm} mm - Normal", "green"
+   302→    return f"{muac_mm} mm - Por encima del rango esperado", "yellow"
+   303→
+   304→def evaluar_pliegue(pliegue_mm, edad_meses):
+   305→    if edad_meses <= 6:
+   306→        if pliegue_mm < 6: return f"{pliegue_mm} mm - Bajo (reservas reducidas)", "orange"
+   307→        if pliegue_mm <= 12: return f"{pliegue_mm} mm - Normal para lactante", "green"
+   308→        return f"{pliegue_mm} mm - Alto", "yellow"
+   309→    if edad_meses <= 60:
+   310→        if pliegue_mm < 7: return f"{pliegue_mm} mm - Bajo (wasting probable)", "orange"
+   311→        if pliegue_mm <= 12: return f"{pliegue_mm} mm - Normal", "green"
+   312→        if pliegue_mm <= 18: return f"{pliegue_mm} mm - Elevado", "yellow"
+   313→        return f"{pliegue_mm} mm - Alto (sobrepeso probable)", "yellow"
+   314→    if pliegue_mm < 8: return f"{pliegue_mm} mm - Bajo", "orange"
+   315→    if pliegue_mm <= 15: return f"{pliegue_mm} mm - Normal", "green"
+   316→    if pliegue_mm <= 22: return f"{pliegue_mm} mm - Elevado", "yellow"
+   317→    return f"{pliegue_mm} mm - Alto (obesidad probable)", "red"
+   318→
+   319→def evaluacion_global(pt_class, te_class, bmi_class, muac_class):
+   320→    severo = sum(1 for s in [pt_class, te_class, bmi_class, muac_class] if "sever" in s.lower())
+   321→    moderado = sum(1 for s in [pt_class, te_class, bmi_class, muac_class] if "moderad" in s.lower())
+   322→    leve = sum(1 for s in [pt_class, te_class, bmi_class, muac_class] if "leve" in s.lower() or "riesgo" in s.lower())
+   323→    if severo > 0:
+   324→        return "Desnutrición severa - Intervención urgente requerida", "red"
+   325→    if moderado > 0:
+   326→        return "Desnutrición moderada - Requiere intervención nutricional", "orange"
+   327→    if leve > 0:
+   328→        return "Riesgo nutricional - Monitoreo y seguimiento recomendado", "yellow"
+   329→    if "Sobrepeso" in bmi_class or "Obesidad" in bmi_class:
+   330→        return "Exceso de peso - Evaluación dietética recomendada", "yellow"
+   331→    return "Estado nutricional normal - Continuar monitoreo regular", "green"
+   332→
+   333→# ============================================================
+   334→#  FUNCIÓN PRINCIPAL DE CÁLCULO
+   335→# ============================================================
+   336→
+   337→def calcular_todo(peso, edad_meses, sexo, edad_gestacional=None, talla=None,
+   338→                   nivel_actividad="moderado", perimetro_cefalico=None,
+   339→                   circunferencia_brazo=None, pliegue_cutaneo=None):
+   340→    pal = PAL_VALUES.get(nivel_actividad, 1.7)
+   341→    es_prematuro = edad_gestacional is not None and edad_gestacional < 37 and edad_meses <= 1
+   342→
+   343→    bmr, metodo_bmr = calcular_bmr(peso, edad_meses, sexo)
+   344→    tee, metodo_tee = calcular_tee(peso, edad_meses, sexo)
+   345→    req_energetico = bmr * pal + costo_crecimiento(edad_meses)
+   346→    crecimiento = costo_crecimiento(edad_meses)
+   347→    liquidos = calcular_liquidos(peso)
+   348→    p_ear, p_rda, p_rango = calcular_proteinas(edad_meses, sexo, es_prematuro)
+   349→    sodio_val, sodio_rango = calcular_sodio(edad_gestacional, edad_meses)
+   350→    potasio_val, potasio_rango = calcular_potasio(edad_gestacional, edad_meses)
+   351→    sc = calcular_superficie_corporal(peso, talla, edad_meses)
+   352→
+   353→    r = {
+   354→        "bmr": round(bmr, 1), "metodo_bmr": metodo_bmr,
+   355→        "tee": round(tee, 1), "metodo_tee": metodo_tee,
+   356→        "req_energetico": round(req_energetico, 1),
+   357→        "req_energetico_kg": round(req_energetico / peso, 1),
+   358→        "crecimiento": round(crecimiento, 1),
+   359→        "liquidos": round(liquidos, 1),
+   360→        "liquidos_kg": round(liquidos / peso, 1),
+   361→        "p_ear": p_ear, "p_rda": p_rda, "p_rango": p_rango,
+   362→        "p_total": round(p_rda * peso, 1),
+   363→        "sodio_val": sodio_val, "sodio_rango": sodio_rango,
+   364→        "potasio_val": potasio_val, "potasio_rango": potasio_rango,
+   365→        "sc": round(sc, 3), "pal": pal, "es_prematuro": es_prematuro,
+   366→    }
+   367→
+   368→    # Cap. 1.2 - Antropometría
+   369→    r["vel_peso"] = velocidad_peso_esperada(edad_meses)
+   370→    r["vel_talla"] = velocidad_talla_esperada(edad_meses)
+   371→
+   372→    if talla:
+   373→        bmi = calcular_bmi(peso, talla)
+   374→        bmi_cl, bmi_color = clasificar_bmi(bmi, edad_meses)
+   375→        pt_pct = round((peso / peso_esperado_para_talla(talla, sexo)) * 100)
+   376→        pt_cl, pt_color = clasificar_peso_talla(pt_pct)
+   377→        te_pct = round((talla / talla_esperada_para_edad(edad_meses, sexo)) * 100)
+   378→        te_cl, te_color = clasificar_talla_edad(te_pct)
+   379→
+   380→        r["bmi"] = bmi
+   381→        r["bmi_cl"] = bmi_cl
+   382→        r["bmi_color"] = bmi_color
+   383→        r["pt_pct"] = pt_pct
+   384→        r["pt_cl"] = pt_cl
+   385→        r["pt_color"] = pt_color
+   386→        r["te_pct"] = te_pct
+   387→        r["te_cl"] = te_cl
+   388→        r["te_color"] = te_color
+   389→
+   390→    if edad_meses <= 24 and perimetro_cefalico:
+   391→        pc_esp = perimetro_cefalico_esperado(edad_meses, sexo)
+   392→        pc_cl, pc_color = clasificar_perimetro_cefalico(perimetro_cefalico, pc_esp)
+   393→        r["pc_esp"] = round(pc_esp, 1)
+   394→        r["pc_cl"] = pc_cl
+   395→        r["pc_color"] = pc_color
+   396→
+   397→    if circunferencia_brazo:
+   398→        muac_cl, muac_color = clasificar_muac(circunferencia_brazo, edad_meses)
+   399→        r["muac_cl"] = muac_cl
+   400→        r["muac_color"] = muac_color
+   401→
+   402→    if pliegue_cutaneo:
+   403→        pct_cl, pct_color = evaluar_pliegue(pliegue_cutaneo, edad_meses)
+   404→        r["pct_cl"] = pct_cl
+   405→        r["pct_color"] = pct_color
+   406→
+   407→    # Evaluación global
+   408→    all_clases = [r.get("pt_cl", ""), r.get("te_cl", ""), r.get("bmi_cl", ""), r.get("muac_cl", "")]
+   409→    if all(c for c in all_clases):
+   410→        ev, ev_color = evaluacion_global(*all_clases)
+   411→        r["eval"] = ev
+   412→        r["eval_color"] = ev_color
+   413→
+   414→    return r
+   415→
+   416→# ============================================================
+   417→#  HELPERS UI
+   418→# ============================================================
+   419→
+   420→def format_edad(meses):
+   421→    if meses < 1: return "< 1 mes"
+   422→    if meses == 1: return "1 mes"
+   423→    if meses < 12: return f"{meses} meses"
+   424→    a, m = divmod(meses, 12)
+   425→    return f"{a} años, {m} meses" if m else f"{a} años"
+   426→
+   427→def badge_html(text, color="green"):
+   428→    return f'<span class="badge badge-{color}">{text}</span>'
+   429→
+   430→def metric(icon, icon_bg, label, value, detail):
+   431→    return f"""
+   432→    <div class="metric-row">
+   433→        <div class="metric-icon" style="background:{icon_bg}">{icon}</div>
+   434→        <div>
+   435→            <p class="metric-label">{label}</p>
+   436→            <p class="metric-value">{value}</p>
+   437→            <p class="metric-detail">{detail}</p>
+   438→        </div>
+   439→    </div>"""
+   440→
+   441→def card_html(title, icon, desc, content, card_class="card", card_type=""):
+   442→    return f"""
+   443→    <div class="{card_class} {card_type}">
+   444→        <p class="section-title">{icon} {title}</p>
+   445→        <p class="section-desc">{desc}</p>
+   446→        {content}
+   447→    </div>"""
+   448→
+   449→# ============================================================
+   450→#  SESSION STATE
+   451→# ============================================================
+   452→if "historial" not in st.session_state:
+   453→    st.session_state.historial = []
+   454→
+   455→# ============================================================
+   456→#  HEADER
+   457→# ============================================================
+   458→st.markdown("""
+   459→<div class="main-header">
+   460→    <h1>👶 Infant</h1>
+   461→    <p>Calculadora de Requerimientos Nutricionales Pediátricos + Evaluación Antropométrica</p>
+   462→    <p style="font-size:0.75rem;opacity:0.7">Cap. 1.2 — Pediatric Nutrition in Practice (Koletzko et al., 2015)</p>
+   463→</div>
+   464→""", unsafe_allow_html=True)
+   465→
+   466→# Tabs
+   467→tab1, tab2 = st.tabs(["🧮 Calculadora", "📋 Historial"])
+   468→
+   469→# ============================================================
+   470→#  TAB 1: CALCULADORA
+   471→# ============================================================
+   472→with tab1:
+   473→    col1, col2 = st.columns(2)
+   474→
+   475→    with col1:
+   476→        # --- DATOS BÁSICOS ---
+   477→        st.markdown(card_html("Datos Básicos", "🧪", "Edad 0 a 18 años. Campos con * son obligatorios.", "", card_type="card"), unsafe_allow_html=True)
+   478→
+   479→        peso = st.number_input("Peso (kg) *", min_value=0.1, max_value=120.0, step=0.01, value=None, placeholder="Ej: 8.5")
+   480→        edad_meses = st.number_input("Edad (meses) *", min_value=0, max_value=216, step=1, value=None, placeholder="0-216")
+   481→        sexo = st.selectbox("Sexo *", ["masculino", "femenino"], format_func=lambda x: "Masculino" if x == "masculino" else "Femenino")
+   482→        talla = st.number_input("Talla (cm)", min_value=20.0, max_value=200.0, step=0.1, value=None, placeholder="Opcional - Ej: 67")
+   483→
+   484→        if edad_meses is not None and edad_meses <= 24:
+   485→            pc = st.number_input("Perímetro Cefálico (cm)", min_value=20.0, max_value=65.0, step=0.1, value=None, placeholder="Opcional - Ej: 43", key="pc_input")
+   486→        else:
+   487→            pc = None
+   488→
+   489→        if edad_meses is not None and edad_meses <= 12:
+   490→            eg = st.number_input("Edad Gestacional (semanas)", min_value=22, max_value=44, step=1, value=None, placeholder="22-44 sem", key="eg_input")
+   491→        else:
+   492→            eg = None
+   493→
+   494→        # --- MEDIDAS ANTROPOMÉTRICAS ---
+   495→        st.markdown(card_html("Medidas Antropométricas", "📏", "Cap. 1.2 — Opcionales para clasificación nutricional.", "", card_type="card-violet"), unsafe_allow_html=True)
+   496→
+   497→        muac = st.number_input("Circunferencia del Brazo - MUAC (mm)", min_value=50, max_value=250, step=1, value=None, placeholder="Opcional - Ej: 140")
+   498→        pliegue = st.number_input("Pliegue Cutáneo Tricipital (mm)", min_value=2.0, max_value=40.0, step=0.5, value=None, placeholder="Opcional - Ej: 10")
+   499→
+   500→        nivel = st.selectbox("Nivel de Actividad Física", ["sedentario", "ligero", "moderado", "activo", "muy_activo"],
+   501→                           format_func=lambda x: f"{x.capitalize()} (PAL ~{PAL_VALUES[x]})")
+   502→
+   503→        calcular = st.button("🧮 Calcular Requerimientos", type="primary", use_container_width=True)
+   504→
+   505→    with col2:
+   506→        if not calcular:
+   507→            st.markdown("""
+   508→            <div class="card" style="text-align:center;padding:3rem 1rem;">
+   509→                <p style="font-size:2rem;margin-bottom:0.5rem;">👶</p>
+   510→                <p style="font-size:1rem;font-weight:500;color:#6b7280;">Sin resultados aún</p>
+   511→                <p style="font-size:0.8rem;color:#9ca3af;">Complete los datos y presione Calcular</p>
+   512→            </div>
+   513→            """, unsafe_allow_html=True)
+   514→
+   515→        if calcular:
+   516→            # Validación
+   517→            errores = []
+   518→            if peso is None or peso <= 0: errores.append("El peso debe ser mayor a 0 kg")
+   519→            if edad_meses is None or edad_meses < 0: errores.append("La edad debe ser >= 0 meses")
+   520→            if eg is not None and (eg < 22 or eg > 44): errores.append("Edad gestacional entre 22-44 sem")
+   521→
+   522→            if errores:
+   523→                for e in errores:
+   524→                    st.error(e)
+   525→            else:
+   526→                r = calcular_todo(
+   527→                    peso=peso, edad_meses=edad_meses, sexo=sexo,
+   528→                    edad_gestacional=eg, talla=talla, nivel_actividad=nivel,
+   529→                    perimetro_cefalico=pc, circunferencia_brazo=muac,
+   530→                    pliegue_cutaneo=pliegue
+   531→                )
+   532→
+   533→                # --- BANNER EVALUACIÓN NUTRICIONAL ---
+   534→                if "eval" in r:
+   535→                    eval_badge = badge_html("Estado nutricional", r["eval_color"])
+   536→                    eval_card_type = f"card-{r['eval_color']}"
+   537→                    st.markdown(f"""
+   538→                    <div class="card {eval_card_type}">
+   539→                        <div style="display:flex;align-items:center;gap:0.75rem;">
+   540→                            {"✅" if r["eval_color"]=="green" else "⚠️" if r["eval_color"]=="yellow" else "🔴" if r["eval_color"]=="red" else "🟠"}
+   541→                            <div>
+   542→                                <p style="font-size:0.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin:0;">Evaluación Nutricional (Cap. 1.2)</p>
+   543→                                <p style="font-size:0.9rem;font-weight:700;margin:0.2rem 0 0;">{r['eval']}</p>
+   544→                            </div>
+   545→                        </div>
+   546→                    </div>
+   547→                    """, unsafe_allow_html=True)
+   548→
+   549→                # --- TARJETA EVALUACIÓN ANTROPOMÉTRICA ---
+   550→                antro_content = metric("📈", "#ccfbf1", "Velocidad de Peso Esperada", r["vel_peso"], "Reglas prácticas de crecimiento normal")
+   551→                antro_content += metric("📏", "#e0f2fe", "Velocidad de Talla Esperada", r["vel_talla"], "+25cm 1er año; +12cm 2do; 80% adulto a 2 años")
+   552→
+   553→                if "bmi" in r:
+   554→                    antro_content += f'<hr style="border:0;border-top:1px solid #f3f4f6;margin:0.3rem 0;">'
+   555→                    antro_content += metric("⚖️", "#ffe4e6", "IMC (BMI)", r["bmi_cl"], "Peso (kg) / Talla (m)²")
+   556→                if "pt_cl" in r:
+   557→                    antro_content += metric("⚡", "#fef3c7", "Peso para Talla", r["pt_cl"], "Ref. OMS 50° centil. Wasting si <80%")
+   558→                if "te_cl" in r:
+   559→                    antro_content += metric("📏", "#dbeafe", "Talla para Edad", r["te_cl"], "Stunting si <90% (desnutrición crónica)")
+   560→                if "pc_cl" in r:
+   561→                    antro_content += f'<hr style="border:0;border-top:1px solid #f3f4f6;margin:0.3rem 0;">'
+   562→                    antro_content += metric("👶", "#fce7f3", "Perímetro Cefálico", r["pc_cl"], f"Esperado: ~{r['pc_esp']} cm")
+   563→                if "muac_cl" in r:
+   564→                    antro_content += metric("🛡️", "#ffedd5", "Circunferencia Brazo (MUAC)", r["muac_cl"], "Normal: 115-185 mm (6-60 meses)")
+   565→                if "pct_cl" in r:
+   566→                    antro_content += metric("❤️", "#fae8ff", "Pliegue Cutáneo Tricipital", r["pct_cl"], "Estimación de reservas de grasa")
+   567→
+   568→                st.markdown(card_html("Evaluación Antropométrica", "🔍", "Crecimiento normal y clasificación por edad — Cap. 1.2", antro_content, card_type="card-violet"), unsafe_allow_html=True)
+   569→
+   570→                # --- TARJETA REQUERIMIENTOS NUTRICIONALES ---
+   571→                badges = ""
+   572→                if r["es_prematuro"]:
+   573→                    badges += badge_html("⚠️ Prematuro", "yellow") + " "
+   574→                badges += badge_html(f"PAL: {r['pal']}", "blue")
+   575→
+   576→                nut_content = metric("🔥", "#ffe4e6", "Tasa Metabólica Basal (BMR)", f"{r['bmr']} kcal/día", r["metodo_bmr"])
+   577→                nut_content += metric("📊", "#dbeafe", "Gasto Energético Total (TEE)", f"{r['tee']} kcal/día", r["metodo_tee"])
+   578→                nut_content += f'<hr style="border:0;border-top:1px solid #f3f4f6;margin:0.3rem 0;">'
+   579→                nut_content += metric("⚡", "#fef3c7", "Requerimiento Energético Total", f"{r['req_energetico']} kcal/día", f"{r['req_energetico_kg']} kcal/kg/día — BMR × PAL {r['pal']}")
+   580→                if r["crecimiento"] > 0:
+   581→                    nut_content += metric("📈", "#dcfce7", "Costo Energético de Crecimiento", f"{r['crecimiento']} kcal/día", "Energía en nuevo tejido")
+   582→                nut_content += f'<hr style="border:0;border-top:1px solid #f3f4f6;margin:0.3rem 0;">'
+   583→                nut_content += metric("💧", "#cffafe", "Requerimiento de Líquidos", f"{r['liquidos']} mL/día", f"{r['liquidos_kg']} mL/kg/día (Holliday-Segar)")
+   584→                nut_content += f'<hr style="border:0;border-top:1px solid #f3f4f6;margin:0.3rem 0;">'
+   585→                nut_content += metric("🛡️", "#d1fae5", "Requerimiento de Proteínas", r["p_rango"], f"Total: {r['p_total']} g/día — RDA: {r['p_rda']} g/kg")
+   586→                nut_content += metric("🧂", "#ffedd5", "Requerimiento de Sodio", r["sodio_rango"], f"{r['sodio_val'] * peso:.1f} mEq totales estimados")
+   587→                nut_content += metric("🧪", "#ede9fe", "Requerimiento de Potasio", r["potasio_rango"], f"{r['potasio_val'] * peso:.1f} mEq totales estimados")
+   588→                nut_content += f'<hr style="border:0;border-top:1px solid #f3f4f6;margin:0.3rem 0;">'
+   589→                nut_content += metric("📐", "#e0e7ff", "Superficie Corporal (Mosteller)", f"{r['sc']} m²", "√(peso × talla / 3600)")
+   590→
+   591→                st.markdown(card_html("Requerimientos Nutricionales", "❤️", "Koletzko et al. — Pediatric Nutrition in Practice (2015)", nut_content, card_type="card-teal"), unsafe_allow_html=True)
+   592→
+   593→                # Guardar en historial
+   594→                if st.button("💾 Guardar en Historial", use_container_width=True):
+   595→                    registro = {
+   596→                        "peso": peso, "edad_meses": edad_meses, "sexo": sexo,
+   597→                        "talla": talla, "bmi": r.get("bmi"), "eval": r.get("eval", ""),
+   598→                        "eval_color": r.get("eval_color", ""),
+   599→                        "req_energetico": r["req_energetico"],
+   600→                        "liquidos": r["liquidos"], "p_rda": r["p_rda"],
+   601→                    }
+   602→                    st.session_state.historial.append(registro)
+   603→                    st.success("Registro guardado en historial ✅")
+   604→
+   605→# ============================================================
+   606→#  TAB 2: HISTORIAL
+   607→# ============================================================
+   608→with tab2:
+   609→    if not st.session_state.historial:
+   610→        st.markdown("""
+   611→        <div class="card" style="text-align:center;padding:3rem 1rem;">
+   612→            <p style="font-size:2rem;margin-bottom:0.5rem;">📋</p>
+   613→            <p style="font-size:1rem;font-weight:500;color:#6b7280;">No hay registros</p>
+   614→            <p style="font-size:0.8rem;color:#9ca3af;">Los cálculos guardados aparecerán aquí</p>
+   615→        </div>
+   616→        """, unsafe_allow_html=True)
+   617→    else:
+   618→        html_rows = ""
+   619→        for i, reg in enumerate(st.session_state.historial, 1):
+   620→            eval_badge = badge_html(reg.get("eval", "N/A")[:30], reg.get("eval_color", "green"))
+   621→            html_rows += f"""
+   622→            <tr>
+   623→                <td>{i}</td>
+   624→                <td>{"M" if reg["sexo"] == "masculino" else "F"}</td>
+   625→                <td>{reg['peso']} kg</td>
+   626→                <td>{format_edad(reg['edad_meses'])}</td>
+   627→                <td>{reg.get('bmi', '—')}</td>
+   628→                <td>{eval_badge}</td>
+   629→                <td>{reg['req_energetico']} kcal</td>
+   630→                <td>{reg['liquidos']} mL</td>
+   631→            </tr>"""
+   632→
+   633→        st.markdown(f"""
+   634→        <div class="card">
+   635→            <table class="history-table">
+   636→                <thead>
+   637→                    <tr>
+   638→                        <th>#</th><th>Sexo</th><th>Peso</th><th>Edad</th>
+   639→                        <th>IMC</th><th>Evaluación</th><th>Calorías</th><th>Líquidos</th>
+   640→                    </tr>
+   641→                </thead>
+   642→                <tbody>{html_rows}</tbody>
+   643→            </table>
+   644→        </div>
+   645→        """, unsafe_allow_html=True)
+   646→
+   647→        if st.button("🗑️ Limpiar Historial"):
+   648→            st.session_state.historial = []
+   649→            st.rerun()
+   650→
+   651→# ============================================================
+   652→#  FOOTER
+   653→# ============================================================
+   654→st.markdown("""
+   655→<div class="footer">
+   656→    Infant v2.1 — Calculadora de Requerimientos Nutricionales Pediátricos + Evaluación Antropométrica<br>
+   657→    Fuente: Pediatric Nutrition in Practice (Koletzko et al., 2015) — Cap. 1.2 Nutritional Assessment
+   658→</div>
+   659→""", unsafe_allow_html=True)
+   660→
