@@ -1,0 +1,61 @@
+// This is your Prisma schema file,
+// learn more at it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or to scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model PatientRecord {
+  id                       Int      @id @default(autoincrement())
+  peso                     Float
+  edadMeses                Int
+  sexo                     String
+  edadGestacional          Int?
+  talla                    Float?
+  nivelActividad           String   @default("moderado")
+  tasaMetabolicaBasal      Float
+  gastoEnergeticoTotal     Float
+  requerimientoEnergetico  Float
+  costoEnergiaCrecimiento  Float
+  requerimientoEnergeticoPorKg Float
+  requerimientoLiquidos    Float
+  requerimientoLiquidosPorKg  Float
+  requerimientoProteinasEAR  Float
+  requerimientoProteinasRDA   Float
+  requerimientoProteinasRango String
+  proteinasTotales         Float
+  requerimientoSodio       Float
+  requerimientoSodioRango   String
+  requerimientoPotasio      Float
+  requerimientoPotasioRango  String
+  superficieCorporal       Float
+  metodoBMR                String
+  metodoTEE                String
+  factorPAL                Float
+  esPrematuro              Boolean  @default(false)
+  // Ch. 1.2 - Anthropometric fields
+  perimetroCefalico        Float?
+  circunferenciaBrazo      Int?
+  pliegueCutaneoTriceps    Float?
+  bmi                      Float?
+  bmiClasificacion         String?
+  pesoParaTalla            Float?
+  pesoParaTallaClasificacion String?
+  tallaParaEdad            Float?
+  tallaParaEdadClasificacion String?
+  perimetroCefalicoEsperado Float?
+  perimetroCefalicoEstado   String?
+  muacClasificacion        String?
+  pliegueCutaneoEstado     String?
+  evaluacionNutricional     String?
+  colorEvaluacion          String?
+  createdAt                DateTime @default(now())
+}
